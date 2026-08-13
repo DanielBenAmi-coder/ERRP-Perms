@@ -28,11 +28,19 @@ export async function POST(request: NextRequest) {
 
   const now = Math.floor(Date.now() / 1000);
   const rank = isManagement ? "Owner" as const : "Admin" as const;
-  await env.DB.prepare(`INSERT INTO users (id, discord_id, username, display_name, avatar_url, staff_rank, created_at, last_login_at, last_sync_at)
-    VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)
-    ON CONFLICT(discord_id) DO UPDATE SET username=excluded.username, display_name=excluded.display_name,
-    staff_rank=excluded.staff_rank, last_login_at=excluded.last_login_at, last_sync_at=excluded.last_sync_at`)
-    .bind(discordId, discordId, name, name, rank, now, now, now).run();
+  try {
+    await env.DB.prepare(`INSERT INTO users (id, discord_id, username, display_name, avatar_url, staff_rank, created_at, last_login_at, last_sync_at)
+      VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)
+      ON CONFLICT(discord_id) DO UPDATE SET username=excluded.username, display_name=excluded.display_name,
+      staff_rank=excluded.staff_rank, last_login_at=excluded.last_login_at, last_sync_at=excluded.last_sync_at`)
+      .bind(discordId, discordId, name, name, rank, now, now, now).run();
+  } catch (error) {
+    console.error("Manual sign-in database error", error instanceof Error ? error.message : error);
+    return NextResponse.json(
+      { error: process.env.DATABASE_URL ? "The database is unavailable. Please try again shortly." : "The Supabase database is not configured yet." },
+      { status: 503 },
+    );
+  }
 
   const session = await signPayload({ sub: discordId, username: name, name, rank, exp: Date.now() + 8 * 60 * 60 * 1000 }, secret);
   const jar = await cookies();

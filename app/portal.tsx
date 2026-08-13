@@ -92,7 +92,9 @@ function Login() {
     const form=new FormData(event.currentTarget);
     try {
       const response=await fetch("/api/auth/manual",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({discordId:form.get("discordId"),name:form.get("name"),managementCode:form.get("managementCode")})});
-      const result=await response.json() as {ok?:boolean;error?:string;redirectTo?:string};
+      const text=await response.text();
+      let result:{ok?:boolean;error?:string;redirectTo?:string}={};
+      try{result=text?JSON.parse(text) as typeof result:{}}catch{result={error:"The server returned an invalid response. Please try again."}}
       if(!response.ok)throw new Error(result.error||"Sign-in failed. Please try again.");
       window.location.href=result.redirectTo||"/dashboard";
     } catch (reason) { setError(reason instanceof Error?reason.message:"Sign-in failed. Please try again.");setBusy(false); }
