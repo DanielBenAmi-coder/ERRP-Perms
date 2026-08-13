@@ -4,7 +4,7 @@ import { verifyPayload } from "./discord";
 
 export async function requireStaffSession() {
   const secret=process.env.AUTH_SECRET;if(!secret)return {ok:false as const,status:503,error:"Authentication is not configured."};
-  const jar=await cookies();const session=await verifyPayload(jar.get("er_session")?.value,secret);if(!session)return {ok:false as const,status:401,error:"Discord sign-in required."};
+  const jar=await cookies();const session=await verifyPayload(jar.get("er_session")?.value,secret);if(!session)return {ok:false as const,status:401,error:"Sign-in required."};
   return {ok:true as const,user:{id:session.sub,discordId:session.sub,rank:session.rank,name:String(session.name??session.username??"Staff")}};
 }
 
