@@ -21,7 +21,9 @@ if errorlevel 1 goto failed
 
 echo.
 echo [4/4] Opening Vercel deployment...
-call pnpm dlx vercel@latest --prod
+call pnpm dlx vercel@latest link --yes --team danielbenami-coders-projects --project errp-permissions-report
+if errorlevel 1 goto failed
+call pnpm dlx vercel@latest deploy --prod --yes
 if errorlevel 1 goto failed
 
 echo.
