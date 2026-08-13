@@ -21,10 +21,11 @@ export function resolveDiscordRank(roleIds: readonly string[]) {
 }
 
 export async function signPayload(payload: Record<string, unknown>, secret: string) {
-  const body = btoa(JSON.stringify(payload));
+  const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+  const body = encode(new TextEncoder().encode(JSON.stringify(payload)));
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
-  const encoded = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const encoded = encode(new Uint8Array(signature));
   return `${body}.${encoded}`;
 }
 
@@ -32,9 +33,10 @@ export async function verifyPayload(token: string | undefined, secret: string) {
   if (!token) return null;
   const [body, encoded] = token.split("."); if (!body || !encoded) return null;
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-  const signature = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+  const decode = (value: string) => Uint8Array.from(atob(value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=")), (char) => char.charCodeAt(0));
+  const signature = decode(encoded);
   const valid = await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(body));
   if (!valid) return null;
-  const payload = JSON.parse(atob(body)) as { sub:string; rank:StaffRank; exp:number; [key:string]:unknown };
+  const payload = JSON.parse(new TextDecoder().decode(decode(body))) as { sub:string; rank:StaffRank; exp:number; [key:string]:unknown };
   return payload.exp > Date.now() ? payload : null;
 }

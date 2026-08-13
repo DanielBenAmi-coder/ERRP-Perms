@@ -1,10 +1,11 @@
 "use client";
-/* eslint-disable @next/next/no-html-link-for-pages, @next/next/no-img-element, jsx-a11y/anchor-is-valid, jsx-a11y/label-has-associated-control */
+/* eslint-disable @next/next/no-html-link-for-pages, @next/next/no-img-element, jsx-a11y/anchor-is-valid, jsx-a11y/label-has-associated-control, @typescript-eslint/no-unused-vars */
 
 import { FormEvent, useMemo, useState } from "react";
 import { PERMISSIONS, REPORT_STATUSES, type ReportStatus } from "../lib/domain";
+import { HigherStaffOverviewV2, NewPermissionReportV2, ReconciliationPage, StaffReconciliationProfile } from "./stage2";
 
-export type View = "login" | "dashboard" | "new" | "reports" | "detail" | "notifications" | "management" | "queue" | "no-evidence" | "all" | "staff" | "staff-profile" | "analytics" | "audit" | "settings";
+export type View = "login" | "dashboard" | "new" | "reports" | "detail" | "notifications" | "management" | "queue" | "no-evidence" | "all" | "staff" | "staff-profile" | "analytics" | "audit" | "settings" | "reconciliation" | "reconciliation-import" | "reconciliation-usage";
 type Report = { id: string; staff: string; rank: string; permission: string; target: string; playerId: string; evidence: boolean; status: ReportStatus; date: string; age: string; reason: string; reviewer?: string };
 
 const reports: Report[] = [
@@ -28,7 +29,7 @@ const nav = [
 ];
 const managementNav = [
   ["/management","⌁","Overview","management"], ["/management/review-queue","✓","Review Queue","queue"], ["/management/no-evidence","!","No Evidence","no-evidence"],
-  ["/management/permission-reports","≡","All Permission Reports","all"], ["/management/staff","♙","Staff","staff"], ["/management/analytics","↗","Analytics","analytics"],
+  ["/management/reconciliation","⇄","Permission Reconciliation","reconciliation"], ["/management/permission-reports","≡","All Permission Reports","all"], ["/management/staff","♙","Staff","staff"], ["/management/analytics","↗","Analytics","analytics"],
   ["/management/audit-logs","◫","Audit Logs","audit"], ["/management/settings","⚙","Settings","settings"],
 ];
 
@@ -85,4 +86,4 @@ function Settings() { const [saved,setSaved]=useState(false); return <div classN
 
 function Login() { return <div className="login-page"><div className="login-noise"/><div className="login-orb one"/><div className="login-orb two"/><section className="login-card"><div className="login-logo"><img src="/er-logo.png" alt="ER Roleplay"/></div><span className="secure-label"><i/> SECURE STAFF SYSTEM</span><h1>ER Permission Report</h1><p>Staff Actions. <b>Fully Accountable.</b></p><div className="login-divider"/><a className="discord-button" href="/api/auth/discord"><span>◖</span>Continue with Discord<b>→</b></a><small>Access is limited to verified ER Roleplay staff members.</small><div className="security-points"><span>● OAuth2 secured</span><span>● Role verified</span><span>● Audit protected</span></div></section><footer><Logo compact/><span>Internal staff system · ER Roleplay © 2026</span></footer></div> }
 
-export function Portal({view}:{view:View}) { if(view==="login") return <Login/>; let content:React.ReactNode; switch(view){case"dashboard":content=<Dashboard/>;break;case"new":content=<NewReport/>;break;case"reports":content=<Reports/>;break;case"detail":content=<Detail/>;break;case"notifications":content=<Notifications/>;break;case"management":content=<Management/>;break;case"queue":content=<Reports management queue/>;break;case"no-evidence":content=<Reports management noEvidence/>;break;case"all":content=<Reports management/>;break;case"staff":content=<StaffPage/>;break;case"staff-profile":content=<StaffPage profile/>;break;case"analytics":content=<Analytics/>;break;case"audit":content=<Audit/>;break;case"settings":content=<Settings/>;break;} return <Shell view={view}>{content}</Shell> }
+export function Portal({view}:{view:View}) { if(view==="login") return <Login/>; let content:React.ReactNode; switch(view){case"dashboard":content=<Dashboard/>;break;case"new":content=<NewPermissionReportV2/>;break;case"reports":content=<Reports/>;break;case"detail":content=<Detail/>;break;case"notifications":content=<Notifications/>;break;case"management":content=<HigherStaffOverviewV2/>;break;case"queue":content=<Reports management queue/>;break;case"no-evidence":content=<Reports management noEvidence/>;break;case"all":content=<Reports management/>;break;case"staff":content=<StaffPage/>;break;case"staff-profile":content=<StaffReconciliationProfile/>;break;case"reconciliation":content=<ReconciliationPage/>;break;case"reconciliation-import":content=<ReconciliationPage detail/>;break;case"reconciliation-usage":content=<ReconciliationPage usage/>;break;case"analytics":content=<Analytics/>;break;case"audit":content=<Audit/>;break;case"settings":content=<Settings/>;break;} return <Shell view={view}>{content}</Shell> }

@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import * as XLSX from "xlsx";
+import { isHigherStaff } from "../lib/domain";
+import { signPayload, verifyPayload } from "../lib/discord";
+import { mapParsedRows, parseCsv, parsePermissionFile } from "../lib/permission-log-parser";
+import { manuallyLinkUsage, normalizePermission, reconcilePermissionUsage, type PermissionReportCandidate, type PermissionUsageInput } from "../lib/reconciliation";
+
+const at=(minute:number)=>new Date(`2026-08-13T20:${String(minute).padStart(2,"0")}:00.000Z`);
+const usage=(overrides:Partial<PermissionUsageInput>={}):PermissionUsageInput=>({id:crypto.randomUUID(),sourceRowNumber:2,staffDiscordId:"123456789012345678",permission:"Jail",targetPlayerId:"42",actionAt:at(10),...overrides});
+const report=(overrides:Partial<PermissionReportCandidate>={}):PermissionReportCandidate=>({id:1,publicId:"ER-PR-1001",staffDiscordId:"123456789012345678",permission:"Jail",targetPlayerId:"42",incidentAt:at(11),...overrides});
+const reconcile=(rows=[usage()],reports=[report()],options={})=>reconcilePermissionUsage(rows,reports,{now:at(50),matchWindowMinutes:10,graceMinutes:15,...options});
+
+test("exact Discord ID, permission, target and close time produce a match",()=>assert.equal(reconcile()[0].status,"MATCHED"));
+test("wrong Discord ID does not match",()=>assert.equal(reconcile([usage()],[report({staffDiscordId:"999"})])[0].status,"UNREPORTED"));
+test("permission normalization accepts casing and rejects unknown values",()=>{assert.equal(normalizePermission(" JAIL "),"Jail");assert.equal(normalizePermission("ban"),null)});
+test("wrong target ID does not match",()=>assert.equal(reconcile([usage()],[report({targetPlayerId:"43"})])[0].status,"UNREPORTED"));
+test("larger allowed difference produces likely match",()=>assert.equal(reconcile([usage()],[report({incidentAt:at(18)})])[0].status,"LIKELY_MATCH"));
+test("outside time tolerance remains unreported",()=>assert.equal(reconcile([usage()],[report({incidentAt:at(21)})])[0].status,"UNREPORTED"));
+test("one Permission Report cannot satisfy two usage events",()=>{const rows=reconcile([usage({id:"a"}),usage({id:"b",actionAt:at(12)})],[report()]);assert.equal(rows.filter(row=>row.matchedReportId===1).length,1)});
+test("duplicate log entry is marked without double counting",()=>{const original=usage({id:"a",rawLogId:"same"});const duplicate=usage({id:"b",rawLogId:"same"});assert.equal(reconcile([original,duplicate],[report(),report({id:2,publicId:"ER-PR-1002"})])[1].status,"DUPLICATE")});
+test("multiple matching Permission Reports are ambiguous",()=>assert.equal(reconcile([usage()],[report(),report({id:2,publicId:"ER-PR-1002",incidentAt:at(12)})])[0].status,"AMBIGUOUS"));
+test("no Permission Report becomes unreported after grace period",()=>assert.equal(reconcile([usage()],[])[0].status,"UNREPORTED"));
+test("usage inside reporting grace period awaits report",()=>assert.equal(reconcile([usage({actionAt:at(45)})],[],{now:at(50)})[0].status,"AWAITING_REPORT"));
+test("manual linking records manually resolved status",()=>{const linked=manuallyLinkUsage(reconcile([usage()],[])[0],report());assert.equal(linked.status,"MANUALLY_RESOLVED");assert.equal(linked.matchedReportId,1)});
+test("re-run matching finds a Permission Report submitted later",()=>{const first=reconcile([usage()],[])[0];assert.equal(first.status,"UNREPORTED");assert.equal(reconcile([first],[report()])[0].status,"MATCHED")});
+test("unknown Staff Discord ID is retained but has no report match",()=>assert.equal(reconcile([usage({staffDiscordId:"777777777777777777"})],[report()])[0].status,"UNREPORTED"));
+test("invalid permission row is marked invalid",()=>assert.equal(reconcile([usage({permission:null,validationError:"Invalid or unsupported permission"})],[])[0].status,"INVALID"));
+test("CSV parser validates structure and formula-like values",()=>{const parsed=parseCsv("discord,action,playerId,timestamp,note\n123,JAIL,42,2026-08-13T20:10:00Z,=CMD()\n");assert.equal(parsed.rows.length,1);assert.equal(parsed.rows[0].note,"'=CMD()")});
+test("mapped CSV rows require all reconciliation identifiers",()=>{const parsed=parseCsv("discord,action,playerId,timestamp\n123,JAIL,,bad\n");const rows=mapParsedRows(parsed.rows,{staffDiscordId:"discord",permission:"action",targetPlayerId:"playerId",actionAt:"timestamp"});assert.match(rows[0].validationError??"",/Missing Target Player ID/)});
+test("XLSX parser accepts a bounded workbook",()=>{const sheet=XLSX.utils.aoa_to_sheet([["discord","action","playerId","timestamp"],["123","Jail","42","2026-08-13T20:10:00Z"]]);const workbook=XLSX.utils.book_new();XLSX.utils.book_append_sheet(workbook,sheet,"Permissions");const bytes=XLSX.write(workbook,{bookType:"xlsx",type:"array"}) as ArrayBuffer;const parsed=parsePermissionFile(bytes,"xlsx",{maxRows:10,maxSheets:1});assert.equal(parsed.rows[0].action,"Jail")});
+test("XLSX parser enforces worksheet limit",()=>{const workbook=XLSX.utils.book_new();for(const name of ["One","Two"])XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([["a"],["b"]]),name);const bytes=XLSX.write(workbook,{bookType:"xlsx",type:"array"}) as ArrayBuffer;assert.throws(()=>parsePermissionFile(bytes,"xlsx",{maxRows:10,maxSheets:1}),/sheet limit/)});
+test("Higher Staff authorization excludes lower ranks",()=>{assert.equal(isHigherStaff("Head Admin"),true);assert.equal(isHigherStaff("Admin"),false)});
+test("secure session payload preserves Unicode Discord display names",async()=>{const token=await signPayload({sub:"123",rank:"Head Admin",name:"דניאל",exp:Date.now()+1000},"test-secret");const payload=await verifyPayload(token,"test-secret");assert.equal(payload?.name,"דניאל")});

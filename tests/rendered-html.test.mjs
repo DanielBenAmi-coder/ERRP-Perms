@@ -25,10 +25,12 @@ test("server-renders the ER Permission Report dashboard", async () => {
 });
 
 test("keeps controlled domain vocabulary and exact permission options", async () => {
-  const [domain, portal, schema] = await Promise.all([
+  const [domain, portal, schema, stage2, migration] = await Promise.all([
     readFile(new URL("../lib/domain.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/portal.tsx", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/stage2.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0001_new_sunspot.sql", import.meta.url), "utf8"),
   ]);
   for (const permission of ["Warn","Jail","Revive","Setjob","Teleport","Bring","Goto","Spectate","SetGang"]) assert.match(domain, new RegExp(`"${permission}"`));
   for (const status of ["Pending","Under Review","Approved","Needs Information","Rejected","Escalated"]) assert.match(domain, new RegExp(`"${status}"`));
@@ -36,4 +38,12 @@ test("keeps controlled domain vocabulary and exact permission options", async ()
   assert.match(portal, /Permission Reports Without Evidence/);
   assert.match(schema, /idx_permission_reports_status_created/);
   assert.match(schema, /idx_permission_reports_target_discord/);
+  assert.match(schema, /permission_usage_logs/);
+  assert.match(schema, /permission_log_imports/);
+  assert.match(stage2, /Permission Reconciliation/);
+  assert.match(stage2, /Target Player Name <span>Optional/);
+  assert.match(stage2, />Today </);
+  assert.match(stage2, />Now</);
+  assert.match(migration, /INSERT INTO `__new_permission_reports`/);
+  assert.match(migration, /PRAGMA optimize/);
 });

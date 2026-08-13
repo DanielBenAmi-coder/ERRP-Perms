@@ -13,6 +13,6 @@ export async function POST(request: NextRequest) {
   if (!body?.password || !(await verifyManagementPassword(body.password,hash))) return NextResponse.json({error:"Invalid management password."},{status:401});
   const minutes=Math.min(120,Math.max(5,Number(process.env.MANAGEMENT_SESSION_MINUTES)||60));
   const token=await signPayload({sub:session.sub,scope:"ERPermissionReport",exp:Date.now()+minutes*60_000},secret);
-  jar.set("er_management",token,{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",maxAge:minutes*60,path:"/management"});
+  jar.set("er_management",token,{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",maxAge:minutes*60,path:"/"});
   return NextResponse.json({ok:true,expiresInMinutes:minutes});
 }
