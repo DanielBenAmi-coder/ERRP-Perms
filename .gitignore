@@ -41,5 +41,6 @@ yarn-error.log*
 /.dev*.log
 /.stage2-dev*.log
 /.next-start*.log
+/.local-demo*.log
 *.tsbuildinfo
 /.site-package-stage/

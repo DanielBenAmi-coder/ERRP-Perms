@@ -31,6 +31,13 @@ ER Roleplay Permission Report and Higher Staff reconciliation system.
 
 Never commit the database password, service-role key, management code, or `.env.local`.
 
+## Local demo without hosting
+
+Double-click `RUN-LOCAL-DEMO.bat`. It opens a disposable local preview at
+`http://localhost:3000`. Leave the Higher Staff field empty for a normal Admin,
+or enter `ERPermissionReport` to preview Higher Staff screens. Demo submissions
+are not permanently stored.
+
 ## Local verification
 
 ```powershell

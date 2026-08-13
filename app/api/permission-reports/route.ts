@@ -9,6 +9,7 @@ const allowedMime=new Set(["image/png","image/jpeg","image/webp","video/mp4","vi
 type ReportRow={public_id:string;staff_name:string;staff_rank:string;permission_type:string;target_player_name:string|null;target_player_id:string;status:string;reason:string;incident_at:number|null;created_at:number;evidence_count:string|number};
 
 export async function GET(request:NextRequest){
+  if(process.env.LOCAL_DEMO_MODE==="true"&&process.env.NODE_ENV!=="production")return NextResponse.json({reports:[]});
   const scope=new URL(request.url).searchParams.get("scope");
   if(scope==="all"){
     const access=await requireHigherStaffManagement();
@@ -26,6 +27,7 @@ export async function POST(request:NextRequest){
   const access=await requireStaffSession();if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});const form=await request.formData();
   const permission=normalizePermission(form.get("permission")),targetPlayerId=String(form.get("targetPlayerId")??"").trim(),targetPlayerName=String(form.get("targetPlayerName")??"").trim()||null,targetDiscordId=String(form.get("targetDiscordId")??"").trim()||null,reason=String(form.get("reason")??"").trim(),incidentRaw=String(form.get("incidentAt")??"");
   const incidentAt=new Date(incidentRaw);if(!permission)return NextResponse.json({error:"Select one of the nine supported permissions."},{status:400});if(!targetPlayerId)return NextResponse.json({error:"Target Player ID is required."},{status:400});if(reason.length<20)return NextResponse.json({error:"Provide a meaningful reason of at least 20 characters."},{status:400});if(Number.isNaN(incidentAt.getTime()))return NextResponse.json({error:"Choose a valid incident date and time."},{status:400});
+  if(process.env.LOCAL_DEMO_MODE==="true"&&process.env.NODE_ENV!=="production")return NextResponse.json({ok:true,publicId:`DEMO-PR-${String(Date.now()).slice(-5)}`,reportId:0,noEvidence:true,demo:true});
   const files=form.getAll("evidence").filter((item):item is File=>item instanceof File&&item.size>0),url=String(form.get("evidenceUrl")??"").trim();const maxMb=Math.max(1,Number(process.env.MAX_UPLOAD_SIZE_MB)||100);
   for(const file of files){if(!allowedMime.has(file.type))return NextResponse.json({error:`Unsupported evidence type: ${file.name}`},{status:415});if(file.size>maxMb*1024*1024)return NextResponse.json({error:`${file.name} exceeds the ${maxMb} MB limit.`},{status:413});}
   if(url){try{const parsed=new URL(url);if(parsed.protocol!=="https:")throw new Error();}catch{return NextResponse.json({error:"Evidence URL must be a valid HTTPS address."},{status:400});}}
