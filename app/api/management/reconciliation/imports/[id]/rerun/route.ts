@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "../../../../../../../lib/platform-env";
 import { NextResponse } from "next/server";
 import { normalizePermission, reconcilePermissionUsage, type PermissionReportCandidate } from "../../../../../../../lib/reconciliation";
 import { requireHigherStaffManagement } from "../../../../../../../lib/server-auth";

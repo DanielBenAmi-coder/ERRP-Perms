@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env, type D1PreparedStatement } from "../../../../../lib/platform-env";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPayload } from "../../../../../lib/discord";
 import { mapParsedRows, parsePermissionFile, REQUIRED_MAPPING_FIELDS, type ColumnMapping, type ImportFileType } from "../../../../../lib/permission-log-parser";

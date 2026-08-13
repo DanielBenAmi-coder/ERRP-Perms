@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "../../../../../lib/platform-env";
 import { NextRequest, NextResponse } from "next/server";
 import { detectImportFileType, mapParsedRows, parsePermissionFile, suggestColumnMapping } from "../../../../../lib/permission-log-parser";
 import { signPayload } from "../../../../../lib/discord";

@@ -1,18 +1,40 @@
-# ER Permission Report
+# ERRP Perms
 
-Internal permission-reporting and Higher Staff review system for ER Roleplay.
+ER Roleplay Permission Report and Higher Staff reconciliation system.
 
-## Included
+## What is included
 
-- Discord OAuth2 with guild membership and exact role hierarchy resolution.
-- D1 schema for staff, Permission Reports, private evidence metadata, notifications and audit logs.
-- R2 binding for private evidence objects.
-- Server-side Higher Staff management verification using an HMAC session and PBKDF2 password hash.
-- Personal dashboards, Permission Report creation/history/details, No Evidence and review queues, Staff profiles, analytics, audit logs and settings.
-- Responsive desktop, tablet and mobile layouts based on the official ER Roleplay logo.
+- Manual staff login using Discord ID and display name.
+- Separate private Higher Staff code.
+- Shared Supabase database, so reports are visible from every device.
+- Permission Reports with optional player name, evidence files or clip URL.
+- CSV, XLSX and JSON permission-log import.
+- Exact, likely, ambiguous, awaiting-report, unreported, duplicate and exception statuses.
+- One-to-one matching by Discord ID, permission, target ID and time window.
+- Audit records for report creation, imports and management decisions.
+- No Discord webhook is enabled.
 
-## Configuration
+## Deployment
 
-Copy `.env.example` to `.env.local` for local development and set the matching secrets in the hosting environment. The management hash format is `iterations:saltHex:derivedKeyHex` using PBKDF2-SHA256. Never commit real credentials.
+1. Create a free Supabase project.
+2. Open **SQL Editor**, paste [`supabase/schema.sql`](supabase/schema.sql), and run it once.
+3. Create a Vercel project from this GitHub repository.
+4. Copy every variable from `.env.example` into Vercel **Settings → Environment Variables**.
+5. Use the Supabase **Transaction pooler** connection string for `DATABASE_URL`.
+6. Generate `AUTH_SECRET` and `MANAGEMENT_PASSWORD_HASH` locally:
 
-Run `pnpm dev` locally. Use `pnpm test`, `pnpm run lint`, and `pnpm exec tsc --noEmit` to validate changes.
+   ```powershell
+   pnpm run generate:secrets
+   ```
+
+7. Redeploy in Vercel. The first login without a Higher Staff code creates an Admin session. Entering the correct code creates an Owner/Higher Staff session.
+
+Never commit the database password, service-role key, management code, or `.env.local`.
+
+## Local verification
+
+```powershell
+pnpm install
+pnpm test
+pnpm build
+```

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env } from "../../../../../lib/platform-env";
 import { NextRequest, NextResponse } from "next/server";
 import { normalizePermission, reconcilePermissionUsage } from "../../../../../lib/reconciliation";
 import { requireHigherStaffManagement } from "../../../../../lib/server-auth";
@@ -6,6 +6,14 @@ import { requireHigherStaffManagement } from "../../../../../lib/server-auth";
 type UsageRow={id:string;source_row_number:number;staff_discord_id:string|null;permission_type:string|null;target_player_id:string|null;target_discord_id:string|null;action_at:number|null;raw_log_id:string|null;validation_error:string|null};
 type ReportRow={id:number;public_id:string;discord_id:string;permission_type:string;target_player_id:string;incident_at:number};
 const auditAction:Record<string,string>={link:"PERMISSION_USAGE_MANUALLY_LINKED",duplicate:"PERMISSION_USAGE_MARKED_DUPLICATE",exception:"PERMISSION_USAGE_MARKED_EXCEPTION",keep_unreported:"PERMISSION_USAGE_MARKED_UNREPORTED",rerun:"PERMISSION_USAGE_MATCHED"};
+
+export async function GET(_request:NextRequest,{params}:{params:Promise<{id:string}>}){
+  const access=await requireHigherStaffManagement();if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});const {id}=await params;
+  const usage=await env.DB.prepare(`SELECT plu.*,COALESCE(u.display_name,'Unknown Staff Discord ID') staff_name,COALESCE(u.staff_rank,'Unknown') staff_rank,pli.public_id import_public_id,pli.filename,pr.public_id matched_report_public_id FROM permission_usage_logs plu JOIN permission_log_imports pli ON pli.id=plu.import_batch_id LEFT JOIN users u ON u.id=plu.staff_user_id LEFT JOIN permission_reports pr ON pr.id=plu.matched_permission_report_id WHERE plu.id=?`).bind(id).first();
+  if(!usage)return NextResponse.json({error:"Permission usage not found."},{status:404});
+  const candidates=(await env.DB.prepare(`SELECT pr.id,pr.public_id,u.display_name staff_name,pr.permission_type,pr.target_player_id,COALESCE(pr.incident_at,pr.created_at) incident_at FROM permission_reports pr JOIN users u ON u.id=pr.created_by_user_id WHERE u.discord_id=? ORDER BY ABS(COALESCE(pr.incident_at,pr.created_at)-?) LIMIT 10`).bind(usage.staff_discord_id,usage.action_at||0).all()).results;
+  return NextResponse.json({usage,candidates});
+}
 
 export async function POST(request:NextRequest,{params}:{params:Promise<{id:string}>}){
   const access=await requireHigherStaffManagement();if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});const {id}=await params;

@@ -1,10 +1,26 @@
-import { env } from "cloudflare:workers";
+import { env, type D1PreparedStatement } from "../../../lib/platform-env";
 import { NextRequest, NextResponse } from "next/server";
 import { normalizePermission, reconcilePermissionUsage } from "../../../lib/reconciliation";
-import { requireStaffSession } from "../../../lib/server-auth";
+import { requireHigherStaffManagement, requireStaffSession } from "../../../lib/server-auth";
 
 type Usage={id:string;source_row_number:number;staff_discord_id:string|null;permission_type:string|null;target_player_id:string|null;target_discord_id:string|null;action_at:number|null;raw_log_id:string|null;validation_error:string|null};
 const allowedMime=new Set(["image/png","image/jpeg","image/webp","video/mp4","video/webm"]);
+
+type ReportRow={public_id:string;staff_name:string;staff_rank:string;permission_type:string;target_player_name:string|null;target_player_id:string;status:string;reason:string;incident_at:number|null;created_at:number;evidence_count:string|number};
+
+export async function GET(request:NextRequest){
+  const scope=new URL(request.url).searchParams.get("scope");
+  if(scope==="all"){
+    const access=await requireHigherStaffManagement();
+    if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});
+    const rows=(await env.DB.prepare(`SELECT pr.public_id,u.display_name staff_name,u.staff_rank,pr.permission_type,pr.target_player_name,pr.target_player_id,pr.status,pr.reason,pr.incident_at,pr.created_at,COUNT(e.id) evidence_count FROM permission_reports pr JOIN users u ON u.id=pr.created_by_user_id LEFT JOIN evidence e ON e.report_id=pr.id WHERE pr.archived_at IS NULL GROUP BY pr.id,u.display_name,u.staff_rank ORDER BY pr.created_at DESC LIMIT 500`).all<ReportRow>()).results;
+    return NextResponse.json({reports:rows});
+  }
+  const access=await requireStaffSession();
+  if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});
+  const rows=(await env.DB.prepare(`SELECT pr.public_id,u.display_name staff_name,u.staff_rank,pr.permission_type,pr.target_player_name,pr.target_player_id,pr.status,pr.reason,pr.incident_at,pr.created_at,COUNT(e.id) evidence_count FROM permission_reports pr JOIN users u ON u.id=pr.created_by_user_id LEFT JOIN evidence e ON e.report_id=pr.id WHERE pr.created_by_user_id=? AND pr.archived_at IS NULL GROUP BY pr.id,u.display_name,u.staff_rank ORDER BY pr.created_at DESC LIMIT 500`).bind(access.user.id).all<ReportRow>()).results;
+  return NextResponse.json({reports:rows});
+}
 
 export async function POST(request:NextRequest){
   const access=await requireStaffSession();if(!access.ok)return NextResponse.json({error:access.error},{status:access.status});const form=await request.formData();

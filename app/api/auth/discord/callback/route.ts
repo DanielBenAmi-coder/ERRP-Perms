@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "cloudflare:workers";
+import { env } from "../../../../../lib/platform-env";
 import { DISCORD_API, resolveDiscordRank, signPayload } from "../../../../../lib/discord";
 
 export async function GET(request: NextRequest) {
